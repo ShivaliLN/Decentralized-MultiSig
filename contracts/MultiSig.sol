@@ -5,6 +5,7 @@ contract MultiSig {
     address[] public owners;
     uint public transactionCount;
     uint public required;
+    uint public daysToExpire;
 
     event Confirmation(address indexed sender, uint indexed transactionId);
     event Submission(uint indexed transactionId);
@@ -16,6 +17,8 @@ contract MultiSig {
         uint value;
         bool executed;
         bytes data;
+        uint dateCreated;
+        bool expired;
     }
 
     mapping(uint => Transaction) public transactions;
@@ -77,7 +80,7 @@ contract MultiSig {
         return count;
     }
 
-    function getConfirmations(uint transactionId) public view returns(address[] memory) {
+    function getConfirmations(uint transactionId) public returns(address[] memory) {
         address[] memory confirmed = new address[](getConfirmationsCount(transactionId));
         uint runningConfirmed;
         for(uint i = 0; i < owners.length; i++) {
@@ -86,6 +89,10 @@ contract MultiSig {
                 runningConfirmed++;
             }
         }
+        
+        if(!isConfirmed(transactionId)){
+            bool successEx = checkifexpired(transactionId);
+        }        
         return confirmed;
     }
 
@@ -113,8 +120,33 @@ contract MultiSig {
         }
     }
 
+   /*
+    function expireTransaction(uint transactionId) public returns(bool) {
+        //require(isOwner(msg.sender));
+        Transaction storage _tx = transactions[transactionId];
+        uint startDate = _tx.dateCreated; // 2018-01-01 00:00:00
+        uint endDate = block.timestamp; // 2018-02-10 00:00:00
+        uint diff = (endDate - startDate) / 60 / 60 / 24; // 40 days 
+        if(diff>=daysToExpire){
+            _tx.expired = true;
+        } 
+        return true;                     
+    }
+ */   
+    function checkifexpired(uint tranId) public returns(bool){
+        Transaction storage _tx = transactions[tranId];
+        uint startDate = _tx.dateCreated; // 2018-01-01 00:00:00
+        //uint endDate = block.timestamp; // 2018-02-10 00:00:00
+        //uint diff = (endDate - startDate) / 60 / 60 / 24; // 40 days 
+        if(block.timestamp > startDate + daysToExpire * 1 days){
+          _tx.expired = true;
+            return true;
+        }
+     return false;
+    }
+
     function addTransaction(address payable destination, uint value, bytes memory data) public returns(uint) {
-        transactions[transactionCount] = Transaction(destination, value, false, data);
+        transactions[transactionCount] = Transaction(destination, value, false, data, block.timestamp, false);
         transactionCount += 1;
         return transactionCount - 1;
     }
@@ -125,5 +157,6 @@ contract MultiSig {
         require(_confirmations <= _owners.length);
         owners = _owners;
         required = _confirmations;
+        daysToExpire = 10;
     }
 }
